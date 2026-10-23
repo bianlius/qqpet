@@ -123,6 +123,15 @@ const RULES: Record<string, Record<string, Rule>> = {
     autoUpdate: (v) => (typeof v === 'boolean' ? v : true),
     updateCheckedAt: num(0, ANY, 0),
     petDisplayId: (v) => (typeof v === 'number' && Number.isSafeInteger(v) ? v : null),
+    webdav: bool,
+    webdavUrl: str(''),
+    webdavUser: str(''),
+    webdavPass: str(''),
+    webdavPath: str('QQPet'),
+    webdavAuto: (v) => (typeof v === 'boolean' ? v : true),
+    webdavDeviceId: str(''),
+    webdavTouchedAt: num(0, ANY, 0),
+    webdavSyncedAt: num(0, ANY, 0),
   },
 }
 
@@ -219,6 +228,15 @@ function fresh(): SaveData {
       autoUpdate: true,
       updateCheckedAt: 0,
       petDisplayId: null,
+      webdav: false,
+      webdavUrl: '',
+      webdavUser: '',
+      webdavPass: '',
+      webdavPath: 'QQPet',
+      webdavAuto: true,
+      webdavDeviceId: '',
+      webdavTouchedAt: 0,
+      webdavSyncedAt: 0,
     },
   }
 }

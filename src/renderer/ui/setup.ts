@@ -266,6 +266,120 @@ const s = save.settings
 type Tab = { label: string; options: Option[]; render?: (redraw: () => void) => HTMLElement[] }
 const head = (label: string): Option => ({ type: 'head', label })
 
+
+let draftWebdavPass = ''
+let webdavPassSet = false
+
+function webdavSyncedLabel(): string {
+  const t = s.webdavSyncedAt
+  if (!t) return '尚未同步'
+  return new Date(t).toLocaleString('zh-CN', { hour12: false })
+}
+
+async function runWebdavTest(): Promise<void> {
+  if (!window.qqpet.webdavTest) return
+  const r = await window.qqpet.webdavTest()
+  windowView({ title: 'WebDAV', msg: r.ok ? '连接成功。探测文件已读写。建议使用 https:// 与网盘应用密码。' : `连接失败：${r.error}` })
+}
+
+async function runWebdavSync(): Promise<void> {
+  if (!window.qqpet.webdavSync) return
+  const r = await window.qqpet.webdavSync()
+  if (!r.ok) {
+    windowView({ title: 'WebDAV', msg: `同步失败：${r.error}` })
+    return
+  }
+  windowView({ title: 'WebDAV', msg: r.message })
+}
+
+function webdavOptions(): Option[] {
+  if (!window.qqpet.webdavSync) return []
+  const opts: Option[] = [
+    head('WebDAV 同步'),
+    {
+      type: 'radio',
+      label: '开启 WebDAV 进度同步（跨设备接力）',
+      title: '把存档与对话记忆同步到 Nextcloud / 群晖等 WebDAV。建议 https://，并用应用密码。拉取前会备份本机 save.json.bak。',
+      on: () => s.webdav,
+      run: () => update('settings', { webdav: !s.webdav }),
+    },
+  ]
+  if (!s.webdav) return opts
+  return [
+    ...opts,
+    {
+      type: 'input',
+      label: 'WebDAV 地址（建议 https://…/remote.php/dav/files/用户）',
+      value: () => s.webdavUrl,
+      set: (v) => update('settings', { webdavUrl: v.trim() }),
+    },
+    {
+      type: 'input',
+      label: '用户名',
+      value: () => s.webdavUser,
+      set: (v) => update('settings', { webdavUser: v.trim() }),
+    },
+    {
+      type: 'input',
+      label: '密码 / 应用密码（仅存本机，不同步到网盘）',
+      value: () => draftWebdavPass || (webdavPassSet || s.webdavPass ? '••••••••' : ''),
+      set: (v) => {
+        if (v === '••••••••') return
+        draftWebdavPass = v
+        if (v) {
+          webdavPassSet = true
+          if (window.qqpet.webdavSetPass) window.qqpet.webdavSetPass(v)
+          else update('settings', { webdavPass: v })
+          draftWebdavPass = ''
+        }
+      },
+    },
+    {
+      type: 'input',
+      label: '远程目录（默认 QQPet，请先在网盘建好）',
+      value: () => s.webdavPath || 'QQPet',
+      set: (v) => update('settings', { webdavPath: v.trim() || 'QQPet' }),
+    },
+    {
+      type: 'radio',
+      label: '自动同步（启动时 + 存档变更后）',
+      title: '启动时若远程更新则拉取并重启；平时有实质进度变更约 20 秒后上传。',
+      on: () => s.webdavAuto,
+      run: () => update('settings', { webdavAuto: !s.webdavAuto }),
+    },
+    { type: 'see', label: '上次同步', value: webdavSyncedLabel() },
+    { type: 'button', label: '测试连接', title: '创建探测文件并读回，确认账号与目录可写', run: () => void runWebdavTest() },
+    { type: 'button', label: '立即同步', title: '按时间戳与设备 ID 决胜；拉取会先备份本机存档', run: () => void runWebdavSync() },
+  ]
+}
+
+function archiveOptions(): Option[] {
+  return [
+    head('存档'),
+    { type: 'button', label: '导出存档', title: '把当前宠物保存成一个文件，可用于备份或换电脑', run: exportSave },
+    { type: 'button', label: '导入存档（支持原版 config.json）', title: '用存档文件替换当前宠物，导入后自动重启', run: importSave },
+    {
+      type: 'button',
+      label: '清除宠物的记忆',
+      title: '清空 memory.md 里的长期记忆；对话历史一并清除',
+      run: () => {
+        forgetMemory()
+        void window.qqpet.memHistory?.([])
+        speak({ s: '[host]，我把以前的事都忘掉啦~', now: true, ai: false }, 'speak')
+      },
+    },
+    ...webdavOptions(),
+    ...(window.qqpet.packs
+      ? ([
+          head('内容包'),
+          { type: 'button', label: '导入内容包…', title: '安装 .qqpetpack 内容包（新素材），不用重装程序；导入后重启生效', run: importPack },
+          { type: 'button', label: '恢复内置内容', title: '删除已导入或下载的内容包，回到程序自带的素材，重启后生效', run: resetPacks },
+        ] satisfies Option[])
+      : []),
+  ]
+}
+
+
 const TABS: Tab[] = [
   {
     label: '全局设置',
@@ -368,28 +482,9 @@ const TABS: Tab[] = [
   { label: '贴心宝贝', options: [], render: sweetSection },
   {
     label: '存档',
-    options: [
-      head('存档'),
-      { type: 'button', label: '导出存档', title: '把当前宠物保存成一个文件，可用于备份或换电脑', run: exportSave },
-      { type: 'button', label: '导入存档（支持原版 config.json）', title: '用存档文件替换当前宠物，导入后自动重启', run: importSave },
-      {
-        type: 'button',
-        label: '清除宠物的记忆',
-        title: '清空 memory.md 里的长期记忆；对话历史一并清除',
-        run: () => {
-          forgetMemory()
-          void window.qqpet.memHistory?.([])
-          speak({ s: '[host]，我把以前的事都忘掉啦~', now: true, ai: false }, 'speak')
-        },
-      },
-      ...(window.qqpet.packs
-        ? ([
-            head('内容包'),
-            { type: 'button', label: '导入内容包…', title: '安装 .qqpetpack 内容包（新素材），不用重装程序；导入后重启生效', run: importPack },
-            { type: 'button', label: '恢复内置内容', title: '删除已导入或下载的内容包，回到程序自带的素材，重启后生效', run: resetPacks },
-          ] satisfies Option[])
-        : []),
-    ],
+    get options() {
+      return archiveOptions()
+    },
   },
   {
     label: '工具',
@@ -457,6 +552,9 @@ let close = (): void => {}
 export function openSetup(): void {
   close()
   if (!draftModel) draftModel = s.aiModel
+  void window.qqpet.webdavStatus?.().then((st) => {
+    if (st.hasSecret) webdavPassSet = true
+  })
   // By label: showing the 作弊 tab shifts the tabs after it.
   let tab = TABS[0].label
   const nav = div('snav')

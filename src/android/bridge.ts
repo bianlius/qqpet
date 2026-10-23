@@ -14,6 +14,7 @@ import { applyPatch, buried, petOf, startSave } from '../shared/save-logic'
 import { TRAY_STATES, trayTip } from '../shared/tray'
 import { latestRelease } from '../shared/update'
 import { weather } from '../shared/weather'
+import { webdavApi, touchWebdavProgress } from '../shared/webdav-host'
 
 /** The `QQPetNative` JavaScript interface of PetService. Async calls answer through `__qqpet.resolve(id, value, error)`. */
 interface Native {
@@ -247,6 +248,20 @@ const api: QQPetApi = {
     applyPatch(save, cloneJson(patch))
     write()
     if (patch.petInfo) showTray()
+    if (
+      patch.petInfo ||
+      patch.selfGoodDatas ||
+      patch.selfGoodUseOption ||
+      patch.studyInfo ||
+      patch.gameSaveDatas ||
+      patch.saveJsonData ||
+      patch.activeOption ||
+      patch.petComputedlInfo ||
+      patch.havePet !== undefined ||
+      patch.illustrated
+    ) {
+      touchWebdavProgress({ getSave: () => save, patchSave: (p) => { applyPatch(save, cloneJson(p)); write() } })
+    }
   },
   resetPet(sex) {
     save = buried(save, sex)
@@ -296,7 +311,40 @@ const api: QQPetApi = {
   onFront() {},
 }
 
+
+const webdav = webdavApi({
+  fetch: nativeFetch,
+  getSave: () => save,
+  patchSave: (patch) => {
+    applyPatch(save, cloneJson(patch))
+    write()
+  },
+  replaceSave: (next) => {
+    native.write(`${FILE}.bak`, JSON.stringify(save))
+    save = startSave(JSON.parse(JSON.stringify(next)) as Record<string, unknown>)
+    write()
+  },
+  readFile: (name, fallback) => native.read(name) ?? fallback,
+  writeFile: (name, text) => native.write(name, text),
+  ensureDeviceId: () => {
+    if (save.settings.webdavDeviceId) return save.settings.webdavDeviceId
+    const id = crypto.randomUUID()
+    applyPatch(save, { settings: { webdavDeviceId: id } })
+    write()
+    return id
+  },
+  relaunch,
+})
+
+Object.assign(api, webdav)
+
 window.qqpet = api
+if (save.settings.webdav && save.settings.webdavAuto && save.settings.webdavUrl.trim()) {
+  void api.webdavSync?.().then((r) => {
+    if (r && r.ok) console.log("[webdav]", r.message)
+    else if (r && !r.ok) console.error("[webdav]", r.error)
+  })
+}
 
 // Ruffle's "复制错误详情" calls navigator.clipboard.writeText and ticks without waiting for it; the overlay
 // WebView is not focused, so the web clipboard refuses and nothing is copied (#18). Copy natively instead.

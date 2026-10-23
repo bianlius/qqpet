@@ -21,6 +21,7 @@ import { VisitQueue } from './visit-queue'
 import { addFacts, clearMemory, loadDialogueState, loadHistory, loadMemory, rewriteFacts, saveDialogueState, saveHistory, type HistoryTurn } from './memory'
 import { DEFAULT_HOTKEY, parseHotkey, watchHotkey, type KeyWatcher } from './hotkey'
 import { preloadAsr, transcribe } from './asr'
+import { scheduleWebdavAuto, storeWebdavPass, webdavStatus, webdavSync, webdavSyncOnLaunch, webdavTest } from './webdav-sync'
 
 // A test sidecar (QQPET_USER_DATA) runs beside the real pet: own save, own id, own lock.
 if (process.env.QQPET_USER_DATA) app.setPath('userData', process.env.QQPET_USER_DATA)
@@ -114,6 +115,16 @@ app.whenReady().then(() => {
     if (Array.isArray(turns)) saveHistory(turns)
   })
   ipcMain.on(IPC.memClear, () => clearMemory())
+  ipcMain.handle(IPC.webdavSync, async () => {
+    const r = await webdavSync()
+    if (r.ok && r.relaunch) setTimeout(() => relaunch(), 400)
+    return r.ok ? { ok: true as const, message: r.message, relaunch: r.relaunch } : r
+  })
+  ipcMain.handle(IPC.webdavTest, () => webdavTest())
+  ipcMain.handle(IPC.webdavStatus, () => webdavStatus())
+  ipcMain.on(IPC.webdavSetPass, (_e, pass: string) => {
+    if (typeof pass === 'string') storeWebdavPass(pass)
+  })
   // 语音：说话键（双击左Alt后按住）→ 渲染层录音 → 本地识别 → 聊天管线
   ipcMain.on(IPC.voiceAudio, (_e, samples: Float32Array) => {
     void transcribe(samples)
@@ -211,6 +222,20 @@ app.whenReady().then(() => {
   ipcMain.handle(IPC.load, () => getSave())
   ipcMain.on(IPC.save, (_e, patch: SavePatch) => {
     patchSave(patch)
+    if (
+      patch.petInfo ||
+      patch.selfGoodDatas ||
+      patch.selfGoodUseOption ||
+      patch.studyInfo ||
+      patch.gameSaveDatas ||
+      patch.saveJsonData ||
+      patch.activeOption ||
+      patch.petComputedlInfo ||
+      patch.havePet !== undefined ||
+      patch.illustrated
+    ) {
+      scheduleWebdavAuto()
+    }
     if (patch.petInfo) {
       tray.retip(getSave().petInfo)
       lan.setIdentity(petInit())
@@ -322,6 +347,9 @@ app.whenReady().then(() => {
     frontTimer = setInterval(tick, 15_000)
   }
   watchFront(getSave().settings.watchApp)
+  void webdavSyncOnLaunch().then((need) => {
+    if (need) relaunch()
+  })
 })
 
 app.on('window-all-closed', () => app.quit())
