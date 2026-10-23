@@ -59,10 +59,12 @@ export function openGames(): void {
   ]
   const tabs = div('gameTabs', ...cats.map((c, i) => button('gameTab', () => show(i), c.name)))
   const list = div('gameList')
+  const played = Math.min(count('Game'), DAY_MINUTES)
+  const dayMark = div('gameDayMark', `今日已玩 ${played}/${DAY_MINUTES} 分钟`)
   function show(i: number): void {
     tabs.querySelectorAll('.gameTab').forEach((t, j) => t.classList.toggle('active', i === j))
     list.replaceChildren(...cats[i].games.map((g) => Object.assign(button('gameItem', g.run, ...(g.icon ? [img('gameItemIcon', g.icon)] : []), g.name), { title: g.name })))
   }
   show(0)
-  const close = openBox(div('ui-games', tabs, list), { onClose: () => (open = false) })
+  const close = openBox(div('ui-games', dayMark, tabs, list), { onClose: () => (open = false) })
 }

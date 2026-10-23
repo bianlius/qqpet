@@ -8,3 +8,4 @@
 .ui-games .gameItem:hover {background:#1989fa;color:#fff}
 .ui-games .gameTabs > * {margin:0 3px 6px}
 .ui-games .gameItemIcon {width:20px;height:20px;margin-right:4px;vertical-align:middle}
+.ui-games .gameDayMark {margin:2px 0 0;padding:2px 8px;border-radius:4px;background:#00000014;color:#333;font-size:12px;align-self:flex-start}

@@ -332,3 +332,28 @@
   height: 15px;
   z-index: -1;
 }
+
+/* Corner cues on good cards: study 4/9, inventory count, subject name. */
+.ui-control .cardBadge {
+  position: absolute;
+  z-index: 2;
+  max-width: calc(100% - 2px);
+  padding: 1px 4px;
+  border-radius: 2px;
+  background: #000c;
+  color: #fff;
+  font-size: 10px;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+}
+.ui-control .cardBadge-br {
+  right: 0;
+  bottom: 0;
+}
+.ui-control .cardBadge-tl {
+  left: 0;
+  top: 0;
+}
