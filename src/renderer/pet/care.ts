@@ -1,21 +1,40 @@
 import type { Good } from './data/goods'
 
 /**
- * Trophy / 属性丹 foods often set hunger/clean to 1 so they can be "eaten" for attrs.
- * Auto-care must not treat that as a real fill — otherwise 大衍飞升丹 is eaten every minute forever.
+ * goods.json 没有单独的「属性丹」类型：奖杯/徽章/飞升丹仍是 type food|clean。
+ * 可辨字段只有 hunger|clean|mood 与 charm|intel|strong；price:-1 真零食也常用，不能当闸。
+ *
+ * 贴心宝贝只吃「能填缺口」的补给。token 填值（0/1）吃完仍低于阈值，会每分钟狂吃
+ * （大衍飞升丹、黄金奖杯、愚人怪怪饼、泥浆沐浴露…）。属性字段单独做闸也不行——
+ * 愚人怪怪饼 attrs=0 仍会循环。因此：
+ * 1) CARE_STAT_MIN：care 值至少 2
+ * 2) CARE_ATTR_TRINKET_MAX：带属性加成且 care 值仍像饰品（≤10，如圣战令牌）也排除
+ * 表里带属性的正经食物 hunger 从 180 起跳；清爽冰花等低 hunger 真零食 attrs=0，不受 2) 影响。
  */
 export const CARE_STAT_MIN = 2
+/** Attr trophy / 令牌 still counted as a care fill below this (圣战令牌 hunger=10). */
+export const CARE_ATTR_TRINKET_MAX = 10
+
+/** 魅力+智力+武力；仅作属性丹/饰品判定，不当主闸。 */
+export function careAttrBonus<G extends Partial<Pick<Good, 'charm' | 'intel' | 'strong'>>>(g: G): number {
+  return (g.charm ?? 0) + (g.intel ?? 0) + (g.strong ?? 0)
+}
 
 /** True when the good restores enough of `stat` to be useful for 贴心宝贝 auto-care. */
-export function careUseful<G extends Pick<Good, 'hunger' | 'clean' | 'mood'>>(g: G, stat: 'hunger' | 'clean' | 'mood'): boolean {
-  return (g[stat] ?? 0) >= CARE_STAT_MIN
+export function careUseful<
+  G extends Pick<Good, 'hunger' | 'clean' | 'mood'> & Partial<Pick<Good, 'charm' | 'intel' | 'strong'>>,
+>(g: G, stat: 'hunger' | 'clean' | 'mood'): boolean {
+  const v = g[stat] ?? 0
+  if (v < CARE_STAT_MIN) return false
+  if (careAttrBonus(g) > 0 && v <= CARE_ATTR_TRINKET_MAX) return false
+  return true
 }
 
 /**
  * The good that wastes least of its effect on `stat` with `deficit` points missing: the biggest one that still
  * fits, otherwise the one that overflows least. Goods that do nothing useful for the stat are never picked.
  */
-export function pickCare<G extends Pick<Good, 'hunger' | 'clean' | 'mood'>>(goods: G[], stat: 'hunger' | 'clean' | 'mood', deficit: number): G | undefined {
+export function pickCare<G extends Pick<Good, 'hunger' | 'clean' | 'mood'> & Partial<Pick<Good, 'charm' | 'intel' | 'strong'>>>(goods: G[], stat: 'hunger' | 'clean' | 'mood', deficit: number): G | undefined {
   let fit: G | undefined
   let over: G | undefined
   for (const g of goods) {
@@ -154,7 +173,7 @@ export function parseLog(raw: string | undefined): LogEntry[] {
 }
 
 /** The cheapest good in the shop that does something for `stat`, among those the pet may buy. */
-export function cheapest<G extends Pick<Good, 'hunger' | 'clean' | 'mood' | 'price'>>(goods: G[], stat: 'hunger' | 'clean' | 'mood'): G | undefined {
+export function cheapest<G extends Pick<Good, 'hunger' | 'clean' | 'mood' | 'price'> & Partial<Pick<Good, 'charm' | 'intel' | 'strong'>>>(goods: G[], stat: 'hunger' | 'clean' | 'mood'): G | undefined {
   let best: G | undefined
   for (const g of goods) {
     if (!careUseful(g, stat) || !(g.price! > 0)) continue
@@ -175,7 +194,7 @@ export function bestJob<J extends Pick<Good, 'yb' | 'useTime'>>(jobs: J[], quali
 }
 
 /** The chosen good when the pet still has it, otherwise the least wasteful one. */
-export function chooseCare<G extends Pick<Good, 'hunger' | 'clean' | 'mood'> & { id: string }>(
+export function chooseCare<G extends Pick<Good, 'hunger' | 'clean' | 'mood'> & Partial<Pick<Good, 'charm' | 'intel' | 'strong'>> & { id: string }>(
   goods: G[],
   stat: 'hunger' | 'clean' | 'mood',
   deficit: number,
