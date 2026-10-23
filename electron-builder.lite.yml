@@ -37,6 +37,9 @@ mac:
     - target: dmg
       arch: [arm64, x64]
   category: public.app-category.games
+  # macOS 15+ prompts for Local Network; without this string UDP discovery for 局域网串门 stays blocked (#120).
+  extendInfo:
+    NSLocalNetworkUsageDescription: "QQ宠物用本地网络发现同一局域网里的好友宠物，以便串门和传话。"
 
 linux:
   target: [AppImage, deb]

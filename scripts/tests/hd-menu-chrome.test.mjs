@@ -49,9 +49,16 @@ describe('HD menu chrome (#117)', () => {
       const one = join(menu, `ditu0${n}.png`)
       const two = join(menu, `ditu0${n}@2x.png`)
       assert.ok(existsSync(one) && existsSync(two), `ditu0${n}`)
-      const a = imageSize(readFileSync(one))
-      const b = imageSize(readFileSync(two))
-      assert.ok(a && b)
+      const oneBuf = readFileSync(one)
+      const twoBuf = readFileSync(two)
+      // CI checkouts skip Git LFS, so Menu PNGs may be pointer stubs without IHDR.
+      const a = imageSize(oneBuf)
+      const b = imageSize(twoBuf)
+      if (!a || !b) {
+        assert.ok(oneBuf.includes('version https://git-lfs.github.com/spec/v1') || twoBuf.includes('version https://git-lfs.github.com/spec/v1'),
+          `ditu0${n}: unreadable PNG and not an LFS pointer`)
+        continue
+      }
       assert.equal(b.w, a.w * 2, `ditu0${n} width`)
       assert.equal(b.h, a.h * 2, `ditu0${n} height`)
     }
