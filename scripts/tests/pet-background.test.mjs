@@ -7,15 +7,72 @@ import test from 'node:test'
 const save = {
   selfGoodUseOption: { background: null, food: null, clean: null, toy: null },
 }
+
+function makeEl(id = '') {
+  const el = {
+    id,
+    className: '',
+    style: { backgroundImage: '' },
+    children: [],
+    parentElement: null,
+    offsetWidth: 1,
+    classList: {
+      contains(name) { return el.className.split(/\s+/).filter(Boolean).includes(name) },
+      add(name) {
+        const names = new Set(el.className.split(/\s+/).filter(Boolean))
+        names.add(name)
+        el.className = [...names].join(' ')
+      },
+      remove(name) {
+        const names = new Set(el.className.split(/\s+/).filter(Boolean))
+        names.delete(name)
+        el.className = [...names].join(' ')
+      },
+      toggle(name, on) {
+        if (on === undefined) on = !el.classList.contains(name)
+        if (on) el.classList.add(name)
+        else el.classList.remove(name)
+      },
+    },
+    prepend(child) {
+      child.parentElement = el
+      el.children.unshift(child)
+      return child
+    },
+    querySelector(sel) {
+      if (sel === ':scope > .petBg' || sel === '.petBg') {
+        return el.children.find(c => c.className.split(/\s+/).filter(Boolean).includes('petBg')) ?? null
+      }
+      return null
+    },
+  }
+  return el
+}
+
 globalThis.backgroundTestSave = save
-const pet = { id: 'pet', style: { backgroundImage: '' } }
+const pet = makeEl('pet')
 globalThis.document = {
   getElementById: () => pet,
-  createElement: () => ({ getContext: () => ({}) }),
+  createElement: (tag = 'div') => {
+    const el = makeEl()
+    if (tag === 'canvas') {
+      el.width = 0
+      el.height = 0
+      el.getContext = () => ({
+        clearRect() {},
+        drawImage() {},
+        getImageData: () => ({ data: new Uint8ClampedArray(0) }),
+      })
+    }
+    return el
+  },
 }
 globalThis.HTMLCanvasElement = class {
   getContext() { return {} }
 }
+
+/** Scene bitmap lives on #pet > .petBg after the fade-layer change. */
+const bgImage = () => pet.querySelector('.petBg')?.style.backgroundImage ?? ''
 
 registerHooks({
   resolve(specifier, context, nextResolve) {
@@ -41,30 +98,30 @@ const { cover } = await import('../../src/mobile/overlay.ts')
 
 test('desktop background restores, switches, expires and supports 无背景', async () => {
   await import('../../src/renderer/ui/background.ts')
-  assert.equal(pet.style.backgroundImage, '')
+  assert.equal(bgImage(), '')
 
   startTimed(goodOf('background', 'b0000001'))
-  assert.equal(pet.style.backgroundImage, 'url("./pet/img_res/background/b0000001.gif")')
+  assert.equal(bgImage(), 'url("./pet/img_res/background/b0000001.gif")')
   assert.equal(save.selfGoodUseOption.background.left, 60)
   tickTimed(1)
-  assert.equal(pet.style.backgroundImage, 'url("./pet/img_res/background/b0000001.gif")')
+  assert.equal(bgImage(), 'url("./pet/img_res/background/b0000001.gif")')
 
   startTimed(goodOf('background', 'b0000002'))
-  assert.equal(pet.style.backgroundImage, 'url("./pet/img_res/background/b0000002.gif")')
+  assert.equal(bgImage(), 'url("./pet/img_res/background/b0000002.gif")')
   assert.deepEqual(tickTimed(120), ['background'])
-  assert.equal(pet.style.backgroundImage, '')
+  assert.equal(bgImage(), '')
 
   startTimed(goodOf('background', 'b0000001'))
   startTimed(goodOf('background', 'b0000000'))
-  assert.equal(pet.style.backgroundImage, '')
+  assert.equal(bgImage(), '')
 
   // Re-loading the renderer must draw the equipped background before any goods event.
   save.selfGoodUseOption.background = { id: 'b0000002', left: 15 }
   await import('../../src/renderer/ui/background.ts?restored')
-  assert.equal(pet.style.backgroundImage, 'url("./pet/img_res/background/b0000002.gif")')
+  assert.equal(bgImage(), 'url("./pet/img_res/background/b0000002.gif")')
   save.selfGoodUseOption.background.left = 0
   await import('../../src/renderer/ui/background.ts?expired')
-  assert.equal(pet.style.backgroundImage, '')
+  assert.equal(bgImage(), '')
 })
 
 test('mobile cropping includes the scene, releases it when removed, and ignores hidden pets', () => {

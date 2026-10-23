@@ -109,7 +109,12 @@ function coverage(el: Element, current: boolean): Box | null {
   const box = el.getBoundingClientRect()
   // A hidden pet (opacity 0) or speech bubble (visibility hidden) must not keep a window that swallows touches.
   if (!visibleContent(el)) return null
-  if (el.id === 'pet' && (el as HTMLElement).style.backgroundImage) return box
+  // Scene bitmap lives on #pet > .petBg (fade layer); fall back to #pet for older builds.
+  if (el.id === 'pet') {
+    const layer = el.querySelector(':scope > .petBg') as HTMLElement | null
+    const image = layer?.style.backgroundImage || (el as HTMLElement).style.backgroundImage
+    if (image && !layer?.classList.contains('hide')) return box
+  }
   if (!el.closest('#pet') || el.matches('.point')) return box
   return el.tagName === 'RUFFLE-PLAYER' ? drawn(el as RufflePlayerElement, box, current) : null
 }
