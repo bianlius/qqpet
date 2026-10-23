@@ -64,6 +64,10 @@ export const IPC = {
   voiceAudio: 'voice:audio',
   voicePart: 'voice:part',
   voicePartial: 'voice:partial',
+  webdavSync: 'webdav:sync',
+  webdavTest: 'webdav:test',
+  webdavStatus: 'webdav:status',
+  webdavSetPass: 'webdav:set-pass',
 } as const
 
 export interface Point {
@@ -305,4 +309,11 @@ export interface QQPetApi {
   voicePart?(samples: Float32Array): void
   /** What has been heard so far; keeps changing until the final transcript. */
   onVoicePartial?(listener: (text: string) => void): void
+
+  /** WebDAV 进度同步（存档 + 记忆）；缺省表示当前壳未实现。 */
+  webdavSync?(): Promise<{ ok: true; message: string; relaunch: boolean } | { ok: false; error: string }>
+  webdavTest?(): Promise<{ ok: true } | { ok: false; error: string }>
+  webdavStatus?(): Promise<{ enabled: boolean; syncedAt: number; touchedAt: number; hasSecret: boolean; https: boolean }>
+  /** 单独写入应用密码（桌面可进系统加密库）；空字符串清除。 */
+  webdavSetPass?(pass: string): void
 }

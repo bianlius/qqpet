@@ -105,6 +105,10 @@ const api: QQPetApi = {
     ipcRenderer.removeAllListeners(IPC.voiceError)
     ipcRenderer.on(IPC.voiceError, (_e, message) => listener(message))
   },
+  webdavSync: () => ipcRenderer.invoke(IPC.webdavSync),
+  webdavTest: () => ipcRenderer.invoke(IPC.webdavTest),
+  webdavStatus: () => ipcRenderer.invoke(IPC.webdavStatus),
+  webdavSetPass: (pass) => ipcRenderer.send(IPC.webdavSetPass, pass),
 }
 
 contextBridge.exposeInMainWorld('qqpet', api)

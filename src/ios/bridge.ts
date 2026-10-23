@@ -9,6 +9,7 @@ import { applyPatch, buried, petOf, startSave } from '../shared/save-logic'
 import { TRAY_STATES, trayTip } from '../shared/tray'
 import { latestRelease } from '../shared/update'
 import { weather } from '../shared/weather'
+import { webdavApi, touchWebdavProgress } from '../shared/webdav-host'
 import { gameRewards } from './game-rewards'
 import { isFatalRufflePanic, readRufflePanic, type RufflePanic } from './diagnostics'
 import { startGeometry, type PetPointer } from './geometry'
@@ -377,6 +378,26 @@ const api: QQPetApi = {
     applyPatch(save, copy)
     write()
     if (patch.petInfo) showTray()
+    if (
+      patch.petInfo ||
+      patch.selfGoodDatas ||
+      patch.selfGoodUseOption ||
+      patch.studyInfo ||
+      patch.gameSaveDatas ||
+      patch.saveJsonData ||
+      patch.activeOption ||
+      patch.petComputedlInfo ||
+      patch.havePet !== undefined ||
+      patch.illustrated
+    ) {
+      touchWebdavProgress({
+        getSave: () => requireOwner().save,
+        patchSave: (p) => {
+          applyPatch(requireOwner().save, cloneJson(p))
+          write()
+        },
+      })
+    }
   },
   flush,
   resetPet(sex) {
@@ -438,6 +459,33 @@ const api: QQPetApi = {
   onPresence: (listener) => listen('presence', listener),
   onFront: (listener) => listen('front', listener),
 }
+
+const webdav = webdavApi({
+  fetch: nativeFetch,
+  getSave: () => requireOwner().save,
+  patchSave: (patch) => {
+    applyPatch(requireOwner().save, cloneJson(patch))
+    write()
+  },
+  replaceSave: (next) => {
+    // SyncStore allows Promise; iOS replaceSave backups when asked.
+    return replaceSave(startSave(JSON.parse(JSON.stringify(next)) as Record<string, unknown>), true)
+  },
+  // iOS shell has no general sidecar files yet — empty local must not wipe remote memory (push keeps remote).
+  readFile: (_name, fallback) => fallback,
+  writeFile: () => {},
+  ensureDeviceId: () => {
+    const { save } = requireOwner()
+    if (save.settings.webdavDeviceId) return save.settings.webdavDeviceId
+    const id = crypto.randomUUID()
+    applyPatch(save, { settings: { webdavDeviceId: id } })
+    write()
+    return id
+  },
+  relaunch: () => { location.reload() },
+})
+
+Object.assign(api, webdav)
 window.qqpet = api
 window.__qqpetNativePetInput = !gamePage
 if (gamePage) window.close = () => api.closeGame?.()
@@ -462,6 +510,12 @@ const ready: Promise<void> = rpc.request<Bootstrap>('bootstrap', { role }).then(
     }
   }
   model = startSave(stored)
+  if (!gamePage && model.settings.webdav && model.settings.webdavAuto && model.settings.webdavUrl.trim()) {
+    void api.webdavSync?.().then((r) => {
+      if (r && r.ok) console.log('[webdav]', r.message)
+      else if (r && !r.ok) console.error('[webdav]', r.error)
+    })
+  }
   model.settings.autoStart = false
   model.settings.clip = false
   model.settings.watchApp = false

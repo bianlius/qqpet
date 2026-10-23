@@ -156,6 +156,23 @@ export interface Settings {
   updateCheckedAt: number
   /** Desktop display holding the pet. Null starts on the primary display. */
   petDisplayId: number | null
+  /** WebDAV 进度同步：跨设备接力同一只宠物（存档 + 对话记忆）。 */
+  webdav: boolean
+  /** WebDAV 根地址，建议 https://…（Nextcloud / 群晖等）。 */
+  webdavUrl: string
+  webdavUser: string
+  /** 应用密码；上传存档时会抹掉，只留在本机。 */
+  webdavPass: string
+  /** 远程目录名，默认 QQPet。 */
+  webdavPath: string
+  /** 启动时自动同步；有实质存档变更后也会防抖上传。 */
+  webdavAuto: boolean
+  /** 本安装稳定 id，用于冲突决胜；不随拉取覆盖。 */
+  webdavDeviceId: string
+  /** 本机进度时间戳（毫秒），有实质变更时刷新。 */
+  webdavTouchedAt: number
+  /** 上次成功同步的 Unix 毫秒。 */
+  webdavSyncedAt: number
 }
 
 export interface SaveData {

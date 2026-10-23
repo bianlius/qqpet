@@ -87,3 +87,13 @@ export function resetSave(sex?: Sex): void {
   save = buried(save, sex)
   write(save)
 }
+
+/**
+ * Replaces the in-memory save and writes it; caller should have copied save.json.bak.
+ * Used by WebDAV pull and keeps the same shape as importSave without reading a file.
+ */
+export function replaceSaveData(data: SaveData): void {
+  save = startSave(data as unknown as Record<string, unknown>)
+  write(save)
+}
+
