@@ -1,6 +1,7 @@
 import { FACE } from '../pet/data/face'
 import { machine } from '../pet/pet'
 import { rand } from '../pet/rand'
+import { pokeMoodGain } from '../pet/mood'
 import { info, mood, save, setInfo, stage, update } from '../pet/store'
 import { addCount } from '../pet/tasks'
 import { touch } from './dom'
@@ -19,7 +20,7 @@ function poke(key: string, s = 1, e = s): void {
   addCount('Amusing')
   if (!save.gameSaveDatas.ddw) windowView({ title: '逗逗我~~', msg: '恭喜成功开启逗宠成就~~', goods: [{ url: 'pet/achievement/ddw.svg', name: '逗宠成就' }] })
   update('gameSaveDatas', { ddw: save.gameSaveDatas.ddw + 1 })
-  const v = rand(5, 15)
+  const v = pokeMoodGain(info.mood)
   void floatMood(v)
   setInfo('mood', Math.min(info.mood + v, 1000))
   const dir = stage() === 'Adult' ? `Adult/${mood()}` : stage()

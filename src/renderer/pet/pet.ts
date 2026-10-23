@@ -16,6 +16,7 @@ import { listGoods, tickTimed } from './goods'
 import { doctor, useItem, useItemQuietly } from './items'
 import { deliverMails } from './mail'
 import { Machine, type Pose } from './machine'
+import { moodDecayPerMinute } from './mood'
 import { rand } from './rand'
 import { lookUrl, restPlan, SINGLE_FRAME_HOLD, walkUrl } from './router'
 import {
@@ -378,7 +379,7 @@ function tick(): void {
     for (let i = 0; i < steps; i++) {
       // Work, study and travel wear the pet out faster.
       const extra = busy() ? 1 : 0
-      const moodRate = rand(1, 2) + extra
+      const moodRate = moodDecayPerMinute(Boolean(extra))
       // Growth only counts the minutes the mood lasted; an activity stops when it runs out.
       const g = Math.min(dt, info.mood / moodRate)
       if (g < dt) {
