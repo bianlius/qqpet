@@ -2,10 +2,12 @@ import { describe, type Good, type GoodType } from '../pet/data/goods'
 import { toolbarScaleFor } from '../../shared/layout'
 import { listGoods, onGoodsChange, pageOf, type Page } from '../pet/goods'
 import { doctor, useItem } from '../pet/items'
-import { describeStudy, describeWork, study, studyGoods, work, workGoods } from '../pet/jobs'
+import { describeStudy, describeWork, study, studyGoods, studyLessons, work, workGoods } from '../pet/jobs'
 import { info, onInfoChange, petSize, save } from '../pet/store'
 import { viewportSize } from './viewport'
 import './css/control.css'
+import { cardBadge } from './card-badge'
+import { progressMark } from './progress-mark'
 import { button, div, img, touch } from './dom'
 import { openCommunity } from './community'
 import { openEmail } from './email'
@@ -46,6 +48,10 @@ interface Panel {
   /** Everyday panels: the inventory type shown, with the bar of the stat it restores and a shop link. */
   type?: GoodType
   stat?: Stat
+  /** Bottom-right cue (study 4/9, bag count). Omit when there is no clear number. */
+  mark?: (g: Good) => string | null | undefined
+  /** Top-left label on the card face (study subject names). */
+  tag?: (g: Good) => string | null | undefined
 }
 
 interface Entry {
@@ -67,6 +73,8 @@ const inventory = (type: GoodType, icon: number, stat: Stat) => (): void =>
     },
     type,
     stat,
+    // Classic corner count on bag cards (not a fraction; still the same cue).
+    mark: (g) => (g.num != null && g.num > 0 ? String(g.num) : null),
   })
 
 const PANELS = {
@@ -100,7 +108,15 @@ const MENU: { name: string; icon: string; children?: Entry[]; run?: () => void }
       {
         name: '学习',
         icon: 'xuexi.png',
-        run: () => openPanel({ icon: activeIcon(24), list: (page) => pageOf(studyGoods(), page, PAGE), lines: describeStudy, use: study }),
+        run: () =>
+          openPanel({
+            icon: activeIcon(24),
+            list: (page) => pageOf(studyGoods(), page, PAGE),
+            lines: describeStudy,
+            use: study,
+            tag: (g) => g.name || null,
+            mark: (g) => progressMark(studyLessons(g), g.classNum ?? 0),
+          }),
       },
       { name: '旅游', icon: 'lvyou.png', run: openTravel },
       { name: '看病', icon: 'zhibing.png', run: doctor },
@@ -280,8 +296,10 @@ function openPanel(p: Panel, page = 1): void {
   const turn = (d: number) => (): void => {
     if (page + d >= 1 && page + d <= totalPage) openPanel(p, page + d)
   }
-  const items = goods.map((g: Good) =>
-    div(
+  const items = goods.map((g: Good) => {
+    const tag = p.tag?.(g)
+    const mark = p.mark?.(g)
+    return div(
       'goodItem',
       div(
         'goodItemIconBox fcc',
@@ -294,9 +312,11 @@ function openPanel(p: Panel, page = 1): void {
             if (p.use(g)) closePanel()
           },
         }),
+        ...(tag ? [cardBadge(tag, 'tl')] : []),
+        ...(mark ? [cardBadge(mark, 'br')] : []),
       ),
-    ),
-  )
+    )
+  })
   const next = div(
     'goodList focusPress',
     img('goodTypeIcon', p.icon),

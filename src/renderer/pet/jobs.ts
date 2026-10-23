@@ -37,8 +37,9 @@ const school = (v: number) => SCHOOLS.find((s) => v <= s.max)!
 
 /** Study goods are `<school>-<subject>`. */
 const subjectOf = (g: Good): Subject => g.id.split('-')[1] as Subject
-/** Lessons done at the current school. */
-const lessons = (g: Good): number => save.studyInfo[subjectOf(g)] - g.classNumUp!
+/** Lessons done at the current school (for the subject good shown in the study panel). */
+export const studyLessons = (g: Good): number => save.studyInfo[subjectOf(g)] - g.classNumUp!
+const lessons = studyLessons
 const learn = (k: Subject): void => update('studyInfo', { [k]: save.studyInfo[k] + 1 })
 
 const BUSY = {
