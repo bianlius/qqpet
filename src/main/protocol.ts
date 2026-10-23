@@ -31,7 +31,12 @@ export function handleScheme(): void {
     }
     if (!file) return new Response(null, { status: 404 })
     // X-HD: the hd setting is on. Only <img>/CSS image loads accept SVG; Ruffle's fetch() must get the original bytes.
-    const svg = req.headers.has('x-hd') && req.headers.get('accept')?.includes('image/svg+xml') && hidpiSvg(file)
+    // Menu 9-slice chrome stays on the 1× PNG: SVG wrappers break the tiny head/foot caps (#117), and on Windows
+    // an installer that still ships `ditu01~1.png` can clobber `ditu01@2x.png` via 8.3 short names.
+    const menuChrome = path.replace(/\\/g, '/').includes('/pet/Menu/')
+    const wantsRaster =
+      req.headers.has('x-hd') && !menuChrome && (req.headers.get('accept') ?? '').includes('image/svg+xml')
+    const svg = wantsRaster && hidpiSvg(file)
     if (svg) return new Response(svg, { headers: { 'content-type': 'image/svg+xml' } })
     return net.fetch(pathToFileURL(file).toString())
   })
