@@ -1,15 +1,26 @@
 import type { Good } from './data/goods'
 
 /**
+ * Trophy / 属性丹 foods often set hunger/clean to 1 so they can be "eaten" for attrs.
+ * Auto-care must not treat that as a real fill — otherwise 大衍飞升丹 is eaten every minute forever.
+ */
+export const CARE_STAT_MIN = 2
+
+/** True when the good restores enough of `stat` to be useful for 贴心宝贝 auto-care. */
+export function careUseful<G extends Pick<Good, 'hunger' | 'clean' | 'mood'>>(g: G, stat: 'hunger' | 'clean' | 'mood'): boolean {
+  return (g[stat] ?? 0) >= CARE_STAT_MIN
+}
+
+/**
  * The good that wastes least of its effect on `stat` with `deficit` points missing: the biggest one that still
- * fits, otherwise the one that overflows least. Goods that do nothing for the stat are never picked.
+ * fits, otherwise the one that overflows least. Goods that do nothing useful for the stat are never picked.
  */
 export function pickCare<G extends Pick<Good, 'hunger' | 'clean' | 'mood'>>(goods: G[], stat: 'hunger' | 'clean' | 'mood', deficit: number): G | undefined {
   let fit: G | undefined
   let over: G | undefined
   for (const g of goods) {
     const v = g[stat] ?? 0
-    if (v <= 0) continue
+    if (!careUseful(g, stat)) continue
     if (v <= deficit) {
       if (!fit || v > (fit[stat] ?? 0)) fit = g
     } else if (!over || v < (over[stat] ?? 0)) over = g
@@ -146,7 +157,7 @@ export function parseLog(raw: string | undefined): LogEntry[] {
 export function cheapest<G extends Pick<Good, 'hunger' | 'clean' | 'mood' | 'price'>>(goods: G[], stat: 'hunger' | 'clean' | 'mood'): G | undefined {
   let best: G | undefined
   for (const g of goods) {
-    if (!(g[stat]! > 0) || !(g.price! > 0)) continue
+    if (!careUseful(g, stat) || !(g.price! > 0)) continue
     // Value for money: points per 元宝, then the cheaper one.
     if (!best || g[stat]! / g.price! > best[stat]! / best.price! || (g[stat]! / g.price! === best[stat]! / best.price! && g.price! < best.price!)) best = g
   }
@@ -170,6 +181,6 @@ export function chooseCare<G extends Pick<Good, 'hunger' | 'clean' | 'mood'> & {
   deficit: number,
   chosen: string,
 ): G | undefined {
-  const c = chosen && goods.find((g) => g.id === chosen && (g[stat] ?? 0) > 0)
+  const c = chosen && goods.find((g) => g.id === chosen && careUseful(g, stat))
   return c || pickCare(goods, stat, deficit)
 }
