@@ -1,7 +1,7 @@
 {
   "name": "qqpet",
   "productName": "QQPet",
-  "version": "0.1.0",
+  "version": "0.7.5-fork.20261023",
   "description": "QQ 宠物跨平台复刻版（基于 Arctic Penguin T800 逆向重建）",
   "license": "GPL-3.0-only",
   "private": true,

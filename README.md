@@ -1,5 +1,7 @@
 # QQPet
 
+本 fork 于 2026-10-27 同步了 [Cyclopsfish/qqpet 的 `70b8157`](https://github.com/Cyclopsfish/qqpet/commit/70b8157fba97141fb51036b7a0fe5a1484308058) 源码快照（2026-10-23），包含 v0.7.5 发布说明中的修复，以及 WebDAV 进度同步、卡片进度角标等更新。原仓库及 v0.7.5 标签目前无法访问，因此本地构建使用 `0.7.5-fork.20261023` 标识该快照，不视作已核实的官方 v0.7.5 源码。
+
 QQ 宠物跨平台复刻（Windows / macOS / Linux / Android / HarmonyOS / iOS），基于 Arctic Penguin T800 逆向重建。Flash 内容由 [Ruffle](https://ruffle.rs) 播放。
 
 > **版权声明**：QQ 宠物的美术资源与 SWF 版权归腾讯所有；旅行照片素材版权归《旅行青蛙·中国之旅》所有。本项目仅供学习交流，请勿用于商业用途。
